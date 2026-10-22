@@ -2,6 +2,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
+import {publishFile} from './publish-file.js';
 import {Decoder,Stream} from '@garmin/fitsdk';
 import {parseDEO} from '../web/deo.js';
 import {toFIT,fitStartTime} from './fit-export.js';
@@ -52,10 +53,10 @@ async function main(){
    const fit=toFIT(ride,{startDate,includePauses:true});
    if(!new Decoder(Stream.fromByteArray(fit)).checkIntegrity())throw new Error('FIT-Prüfsummenprüfung fehlgeschlagen.');
    await fs.mkdir(path.dirname(destination),{recursive:true});
-   // Publish complete files atomically, without replacing an existing destination.
+   // Prefer atomic publication; use exclusive copy on filesystems without hardlinks.
    temporary=path.join(path.dirname(destination),`.deo-fit-${randomUUID()}.tmp`);
    await fs.writeFile(temporary,fit,{flag:'wx'});
-   await fs.link(temporary,destination);
+   await publishFile(temporary,destination);
    await fs.unlink(temporary);temporary=undefined;
    results.push({source,destination,status:'converted',samples:ride.rows.length,bytes:fit.byteLength,startUTC:startDate.toISOString(),warnings:ride.warnings});
    console.log(`OK ${relative} (${ride.rows.length} Messpunkte)`);

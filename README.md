@@ -30,7 +30,7 @@ node convert-deo-to-fit.mjs "/path/to/DEO-files" "/path/to/FIT-output"
 - The output must be a different directory. If it is inside the input directory, it is excluded from scanning.
 - Existing FIT files are skipped, never overwritten. Original DEO files remain unchanged.
 - An error in one file does not stop processing the remaining files. A JSON report records results and errors.
-- Every generated file is checked for FIT integrity. Output files become available only after they have been written completely, without overwriting an existing destination.
+- Every generated file is checked for FIT integrity. Files are first written to temporary files, then published using a hardlink. On filesystems without hardlink support (including some external drives and network shares), an exclusive copy is used instead. Existing destinations are never overwritten. The copy fallback is not atomic; an interrupted process or disconnected drive may leave a partial destination file that must be removed before retrying.
 - Exit codes: `0` success/skipped, `1` file errors, `2` invocation or setup errors.
 
 Filenames must follow the pattern `YYYYMMDD_HHMMSS_NAME.DEO`. The timestamp is interpreted in the computer's current time zone, using the daylight-saving or standard-time offset applicable to the ride date. Nonexistent local times during the transition to daylight saving are rejected; for a local time that occurs twice during the autumn transition, JavaScript uses the earlier occurrence.
