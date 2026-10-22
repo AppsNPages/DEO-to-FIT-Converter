@@ -1,0 +1,51 @@
+# Native static evidence: DEO record mapping
+
+Target: `ergoracer_2014_DEMO.exe`. All addresses below are virtual addresses in the PE image; no application execution was performed. Evidence is in `evidence/disassembly.txt` (LLVM objdump output). Its guessed nearby symbol labels are not used to identify function names.
+
+## Address mapping
+
+PE image base: `0x400000`. `.text`: RVA `0x1000`, raw offset `0x600`. `.data`: RVA `0x1bd000`, raw offset `0x1bc600`. Thus the relevant data strings map as follows:
+
+| File offset | Virtual address | Exact string (Windows-1252) |
+|---|---|---|
+| `0x1bd689` | `0x5be089` | `ZEIT,STRECKE,POWER,RPM,SPEED,PULS,HÖHE,TEMP,INTERVAL,PAUSE` |
+| `0x1bd6c8` | `0x5be0c8` | `L_SEC,KM,WATT,RPM,KM/H,BPM,METER,°C,NUM,SEC` |
+| `0x1bd6f4` | `0x5be0f4` | `%6li,%8.3f,%5.0f,%4.0f,%5.1f,%4.0f,%6.1f,%5.1f,%3i,%6i\n` |
+
+Direct code references: `0x4051e7`, `0x405248`, `0x4052fd`. This establishes names and units using the native exporter, not merely plausible ranges in example data.
+
+## Record field layout, established by CSV argument loading
+
+The loop at `0x40529d` sets index=1; `0x4052a2` sets EBX=`0x5ffaec`. `0x4052ac`–`0x405303` pushes the format arguments in reverse C calling order. The format string and labels establish:
+
+| Relative offset | Native load instruction | Type | Meaning |
+|---|---|---|---|
+| +0 | `0x4052fa: movl (%ebx), %ecx` | signed int32 (`%li`) | elapsed/recorded seconds, L_SEC |
+| +4 | `0x4052f4: flds 0x4(%ebx)` | float32 | distance km |
+| +8 | `0x4052eb: flds 0x8(%ebx)` | float32 | power W |
+| +12 | `0x4052e2: flds 0xc(%ebx)` | float32 | cadence RPM |
+| +16 | `0x4052c7: flds 0x10(%ebx)` | float32 | altitude m |
+| +20 | `0x4052d9: flds 0x14(%ebx)` | float32 | speed km/h |
+| +24 | `0x4052be: flds 0x18(%ebx)` | float32 | temperature °C |
+| +28 | `0x4052d0: flds 0x1c(%ebx)` | float32 | heart rate bpm |
+| +32 | `0x4052ac: movl 0x20(%ebx), %eax` | signed int32 (`%i`) | pause seconds |
+| +36 | `0x4052b6: movsbl 0x24(%ebx), %edx` | signed int8 | interval number |
+| +37–39 | not exported | unknown/padding | preserve; do not claim meaning |
+
+At `0x40536b` the pointer advances by `0x28` (40 bytes). At `0x40536e` the loop compares index with count at `0x1b5ca94` and only exports while index<count. Record zero is metadata, not a time-series sample.
+
+The alternate export branch at `0x405131` converts record+0 to float and multiplies by a long-double constant at `0x4053a0`, whose bytes decode to 1/60. It does the same to positive pause seconds at `0x405148`–`0x40515f`, accumulating pause duration. This corroborates seconds, rather than ordinal sample index, for +0. The distinction between recorded time and wall-clock time including pauses should remain explicit.
+
+## Disk-to-memory proof
+
+Loader function begins at `0x404bb0`. It seeks to start, reads one four-byte count into `0x1b5ca94` (`0x404bd0`–`0x404bda`), checks signed bounds 5 through 199999 (`0x404be7`–`0x404bf5`), then reads exactly count elements of size `0x28` into `0x5ffac4` (`0x404bfb`–`0x404c04`). Therefore the export buffer at `0x5ffaec` is base+40, the first sample. File offset of sample i (zero-based real samples) is **44+40i**, and real sample count is **n−1**. This links the native memory-field mapping above directly to disk bytes.
+
+At `0x404edc`–`0x404eec` the loader subtracts the time at base+80 from the time at base+120 and stores the result at `0x5bdce8`: it derives a recording interval from consecutive record timestamps. A viewer must not assume one sample equals one second.
+
+## Trailer and compatibility limits
+
+The loader reads 60 bytes after the n records (`0x404c0c`–`0x404c16`), then 40 bytes (`0x404d81`–`0x404d8b`), conditionally 330 bytes when bit 0x20 of metadata record zero is set (`0x404e85`–`0x404e97`), then attempts 20 more bytes (`0x404eb9`–`0x404ec3`). It compares the first float of the first trailer block to 5555.0 (`0x404c39`–`0x404c48`); fallback assignment uses raw bits `0x45ad9800` at `0x404d5f`.
+
+Writer starts at `0x404f24`: count, n×40-byte record array, then chunks 60,40,330,20. The current writer therefore emits **450 trailer bytes**, while the bundled files reportedly contain **430**, apparently lacking the last 20. This must not be collapsed into a universal 430-byte format claim. The native loader also contains fallback logic for missing/older metadata. A conservative browser implementation may support the observed bundled form and identify other layouts as unsupported, or safely read known records and describe trailer uncertainty.
+
+The trailer's full semantics, metadata record zero, exact analysis algorithms, and compatibility with every historic/device-specific DEO variant remain unverified. This report establishes the core fixed-width sample schema and native export semantics only.

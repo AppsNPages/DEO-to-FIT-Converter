@@ -1,0 +1,13 @@
+import {readFile,writeFile,copyFile} from 'node:fs/promises';
+import {build} from 'esbuild';
+const root=new URL('./web/',import.meta.url);
+await build({entryPoints:[new URL('./src/fit-export.js',import.meta.url).pathname],outfile:new URL('fit.js',root).pathname,bundle:true,format:'esm',platform:'browser',minify:true,legalComments:'inline'});
+await copyFile(new URL('./node_modules/@garmin/fitsdk/LICENSE.txt',import.meta.url),new URL('FIT-SDK-LICENSE.txt',root));
+let html=await readFile(new URL('index.html',root),'utf8');
+const css=await readFile(new URL('style.css',root),'utf8');
+const result=await build({entryPoints:[new URL('app.js',root).pathname],bundle:true,format:'iife',platform:'browser',write:false,minify:true,legalComments:'inline'});
+const script=result.outputFiles[0].text.replaceAll('</script','<\\/script');
+html=html.replaceAll('href="./"','href="standalone.html"');
+html=html.replace('<link rel="stylesheet" href="style.css">',()=>`<style>${css}</style>`).replace('<script type="module" src="app.js"></script>',()=>`<script>${script}</script>`);
+await writeFile(new URL('standalone.html',root),html);
+console.log('Built local FIT module and serverless standalone.html.');

@@ -1,0 +1,26 @@
+# Dependencies and generated SDK bundles
+node_modules/
+/convert-deo-to-fit.mjs
+/web/fit.js
+/web/standalone.html
+/web/FIT-SDK-LICENSE.txt
+
+# Original proprietary app, sample data and local investigation output
+/DATA/
+/ergoracer_2014_DEMO.exe
+/CONTROLL_RECH.TXT
+/evidence/
+
+# Previous working copy (contains a separate Git repository and Sites registration)
+/deo-viewer/
+.openai/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+*.fit
+*.FIT
+*.deo
+*.DEO
+conversion-report-*.json
