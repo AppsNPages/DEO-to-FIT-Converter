@@ -1,10 +1,10 @@
-/** Observed ErgoRacer layout 32. See evidence.html and workspace evidence. */
+/** Observed ErgoRacer header values 0 and 32. See evidence.html and workspace evidence. */
 export const fields = ['distance','power','cadence','altitude','speed','temperature','heartRate'];
 export function parseDEO(buffer, filename='ride.deo') {
   if (!(buffer instanceof ArrayBuffer) || buffer.byteLength < 634) throw new Error('File is too short to contain a DEO ride.');
   if (buffer.byteLength > 40_000_000) throw new Error('This reader supports files up to 40 MB.');
   const v=new DataView(buffer), n=v.getUint32(0,true), layout=v.getUint32(4,true);
-  if(layout!==32) throw new Error(`Unsupported DEO layout ${layout}. Only the observed layout 32 is supported.`);
+  if(![0,32].includes(layout)) throw new Error(`Unsupported DEO header value ${layout}. Only the observed values 0 and 32 are supported.`);
   if(n<5 || n>199999 || ![430,450].includes(buffer.byteLength-(44+(n-1)*40))) throw new Error('DEO length does not match its record count. The file is truncated or uses an unsupported variant.');
   const tail=44+(n-1)*40;
   if(![0,5555].includes(v.getFloat32(tail,true))) throw new Error('DEO trailer marker is missing.');

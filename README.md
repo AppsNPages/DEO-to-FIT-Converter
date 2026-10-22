@@ -47,7 +47,7 @@ Alternatively, open `web/standalone.html` directly in a browser after building. 
 
 ## Supported format and FIT mapping
 
-The reader supports the investigated DEO layout with flags `32`, 40-byte measurement records, and 430-/450-byte trailers. Unknown variants are rejected. The parser reads time, distance, power, cadence, altitude, speed, temperature, heart rate, pauses, and interval numbers.
+The reader supports the investigated DEO record structure with observed header values `0` and `32`, 40-byte measurement records, and 430-/450-byte trailers. The meaning of this header field is not fully established; it does not indicate whether heart-rate data is present. Unknown variants are rejected. The parser reads time, distance, power, cadence, altitude, speed, temperature, heart rate, pauses, and interval numbers.
 
 FIT files contain a cycling activity with one session and one lap. Internal pauses are represented as timer stop/start events. The final trailing pause value is outside the activity. In the website, pauses can be excluded when exporting. Selected sections start at zero distance and retain their time offset from the beginning of the ride. One final recording interval is included in the activity duration.
 
